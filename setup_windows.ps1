@@ -1,7 +1,7 @@
 ﻿$ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-Write-Host "=== ZCS Polaroid Maker Setup ===" -ForegroundColor Cyan
+Write-Host "=== ZCS Polaroid Maker 2.0 Setup ===" -ForegroundColor Cyan
 
 if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
     Write-Host "Python Launcher (py) was not found." -ForegroundColor Red

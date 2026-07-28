@@ -12,6 +12,7 @@ if (-not (Test-Path ".venv\Scripts\python.exe")) {
   --windowed `
   --onefile `
   --name "ZCS Polaroid Maker" `
+  --icon ".\zcs_polaroid_maker.ico" `
   --collect-all rawpy `
   app.py
 
