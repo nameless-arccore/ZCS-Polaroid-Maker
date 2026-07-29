@@ -1,41 +1,19 @@
-﻿#define MyAppName "ZCS Polaroid Maker"
-#define MyAppVersion "2.6"
-#define MyAppPublisher "ZCS"
-#define MyAppExeName "ZCS Polaroid Maker.exe"
+﻿$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
 
-[Setup]
-AppId={{D921BE16-535E-4A87-A84D-0BE8F53C0A20}
-AppName={#MyAppName}
-AppVersion={#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
-DisableProgramGroupPage=yes
-OutputDir=installer_output
-OutputBaseFilename=ZCS_Polaroid_Maker_2.6_Setup
-SetupIconFile=zcs_polaroid_maker.ico
-Compression=lzma2
-SolidCompression=yes
-WizardStyle=modern
-PrivilegesRequired=lowest
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
-UninstallDisplayIcon={app}\{#MyAppExeName}
+if (-not (Test-Path ".\dist\ZCS Polaroid Maker.exe")) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\build_exe.ps1"
+}
 
-[Languages]
-Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
-Name: "english"; MessagesFile: "compiler:Default.isl"
+$portable = Join-Path $PSScriptRoot "portable\ZCS Polaroid Maker 2.6"
+if (Test-Path $portable) { Remove-Item $portable -Recurse -Force }
+New-Item -ItemType Directory -Path $portable | Out-Null
+Copy-Item ".\dist\ZCS Polaroid Maker.exe" $portable
+Copy-Item ".\README_最初にお読みください.txt" $portable
 
-[Tasks]
-Name: "desktopicon"; Description: "デスクトップにショートカットを作成"; GroupDescription: "追加アイコン:"; Flags: unchecked
+$zip = Join-Path $PSScriptRoot "portable\ZCS_Polaroid_Maker_2.6_Portable.zip"
+if (Test-Path $zip) { Remove-Item $zip -Force }
+Compress-Archive -Path "$portable\*" -DestinationPath $zip
 
-[Files]
-Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "README_最初にお読みください.txt"; DestDir: "{app}"; Flags: ignoreversion
-
-[Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-[Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName}を起動"; Flags: nowait postinstall skipifsilent
+Write-Host "Portable package created: $zip" -ForegroundColor Green
+Read-Host "Press Enter to exit"
