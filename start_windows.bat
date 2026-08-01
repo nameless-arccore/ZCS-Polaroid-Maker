@@ -1,23 +1,23 @@
-﻿$ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
+@echo off
+setlocal
+pushd "%~dp0"
 
-Write-Host "=== ZCS Polaroid Maker 2.0 Setup ===" -ForegroundColor Cyan
+if not exist ".venv\Scripts\python.exe" (
+    echo Python environment not found. Running setup...
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup_windows.ps1"
+    if errorlevel 1 (
+        echo Setup failed.
+        pause
+        popd
+        exit /b 1
+    )
+)
 
-if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
-    Write-Host "Python Launcher (py) was not found." -ForegroundColor Red
-    Write-Host "Install Python 3.11 or 3.12, then run this script again."
-    Read-Host "Press Enter to exit"
-    exit 1
-}
+if exist ".venv\Scripts\pythonw.exe" (
+    start "ZCS Polaroid Maker" ".venv\Scripts\pythonw.exe" "%~dp0app.py"
+) else (
+    ".venv\Scripts\python.exe" "%~dp0app.py"
+)
 
-if (-not (Test-Path ".venv")) {
-    py -3 -m venv .venv
-}
-
-& ".\.venv\Scripts\python.exe" -m pip install --upgrade pip
-& ".\.venv\Scripts\python.exe" -m pip install -r requirements.txt
-
-Write-Host ""
-Write-Host "ZCS Polaroid Maker setup completed." -ForegroundColor Green
-Write-Host "Double-click start_windows.bat to launch."
-Read-Host "Press Enter to exit"
+popd
+endlocal
