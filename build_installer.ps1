@@ -1,23 +1,77 @@
-﻿$ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
-
-if (-not (Test-Path ".\dist\ZCS Polaroid Maker.exe")) {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\build_exe.ps1"
-}
-
-$possible = @(
-    "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+﻿param(
+    [switch]$NoPause
 )
-$iscc = $possible | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $iscc) {
-    Write-Host "Inno Setup 6 was not found." -ForegroundColor Yellow
-    Write-Host "Install Inno Setup 6, then run this script again."
-    Read-Host "Press Enter to exit"
-    exit 1
+
+$ErrorActionPreference = "Stop"
+Set-Location -LiteralPath $PSScriptRoot
+$VenvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+
+function Finish-Build {
+    param([int]$Code, [string]$Message)
+
+    Write-Host ""
+    if ($Code -eq 0) {
+        Write-Host $Message -ForegroundColor Green
+    }
+    else {
+        Write-Host $Message -ForegroundColor Red
+    }
+
+    if (-not $NoPause) {
+        Read-Host "Press Enter to exit"
+    }
+    exit $Code
 }
 
-& $iscc ".\installer.iss"
-Write-Host ""
-Write-Host "Installer created in installer_output." -ForegroundColor Green
-Read-Host "Press Enter to exit"
+if (-not (Test-Path -LiteralPath $VenvPython)) {
+    & powershell.exe `
+        -NoProfile `
+        -ExecutionPolicy Bypass `
+        -File ".\setup_windows.ps1" `
+        -NoPause
+
+    if ($LASTEXITCODE -ne 0) {
+        Finish-Build $LASTEXITCODE "Setup failed. EXE was not created."
+    }
+}
+
+& $VenvPython -c "import sys; assert sys.prefix != sys.base_prefix" *> $null
+if ($LASTEXITCODE -ne 0) {
+    Remove-Item ".\.venv" -Recurse -Force -ErrorAction SilentlyContinue
+
+    & powershell.exe `
+        -NoProfile `
+        -ExecutionPolicy Bypass `
+        -File ".\setup_windows.ps1" `
+        -NoPause
+
+    if ($LASTEXITCODE -ne 0) {
+        Finish-Build $LASTEXITCODE "Environment repair failed. EXE was not created."
+    }
+}
+
+& $VenvPython -m pip install --upgrade "pyinstaller>=6.6,<7"
+if ($LASTEXITCODE -ne 0) {
+    Finish-Build 6 "PyInstaller installation failed."
+}
+
+& $VenvPython -m PyInstaller `
+    --noconfirm `
+    --clean `
+    --windowed `
+    --onefile `
+    --name "ZCS Polaroid Maker" `
+    --icon ".\zcs_polaroid_maker.ico" `
+    --collect-all rawpy `
+    app.py
+
+if ($LASTEXITCODE -ne 0) {
+    Finish-Build 7 "PyInstaller build failed."
+}
+
+$exePath = Join-Path $PSScriptRoot "dist\ZCS Polaroid Maker.exe"
+if (-not (Test-Path -LiteralPath $exePath)) {
+    Finish-Build 8 "Build ended without producing the EXE."
+}
+
+Finish-Build 0 "EXE created: dist\ZCS Polaroid Maker.exe"

@@ -1,41 +1,98 @@
-﻿#define MyAppName "ZCS Polaroid Maker"
-#define MyAppVersion "2.6"
-#define MyAppPublisher "ZCS"
-#define MyAppExeName "ZCS Polaroid Maker.exe"
+﻿$ErrorActionPreference = "Continue"
+Set-Location -LiteralPath $PSScriptRoot
 
-[Setup]
-AppId={{D921BE16-535E-4A87-A84D-0BE8F53C0A20}
-AppName={#MyAppName}
-AppVersion={#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
-DisableProgramGroupPage=yes
-OutputDir=installer_output
-OutputBaseFilename=ZCS_Polaroid_Maker_2.6_Setup
-SetupIconFile=zcs_polaroid_maker.ico
-Compression=lzma2
-SolidCompression=yes
-WizardStyle=modern
-PrivilegesRequired=lowest
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
-UninstallDisplayIcon={app}\{#MyAppExeName}
+$PrivatePythonRoot = Join-Path `
+    $env:LOCALAPPDATA `
+    "ZCS\ZCS_Polaroid_Maker\Python311"
+$PrivatePythonExe = Join-Path $PrivatePythonRoot "python.exe"
 
-[Languages]
-Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
-Name: "english"; MessagesFile: "compiler:Default.isl"
+Write-Host "=== ZCS Polaroid Maker Environment Check ===" -ForegroundColor Cyan
+Write-Host "Folder: $PSScriptRoot"
+Write-Host "Windows: $([Environment]::OSVersion.VersionString)"
+Write-Host "64-bit OS: $([Environment]::Is64BitOperatingSystem)"
+Write-Host "Architecture: $env:PROCESSOR_ARCHITECTURE"
+Write-Host ""
 
-[Tasks]
-Name: "desktopicon"; Description: "デスクトップにショートカットを作成"; GroupDescription: "追加アイコン:"; Flags: unchecked
+Write-Host "ZCS private Python:"
+Write-Host "  Root: $PrivatePythonRoot"
+Write-Host "  python.exe exists: $(Test-Path -LiteralPath $PrivatePythonExe)"
 
-[Files]
-Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "README_最初にお読みください.txt"; DestDir: "{app}"; Flags: ignoreversion
+if (Test-Path -LiteralPath $PrivatePythonExe) {
+    Write-Host "  Running private Python..."
 
-[Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+    $output = @(
+        & $PrivatePythonExe -c "import sys; print(sys.version); print(sys.executable)" 2>&1
+    )
+    $exitCode = $LASTEXITCODE
 
-[Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName}を起動"; Flags: nowait postinstall skipifsilent
+    Write-Host "  Exit code: $exitCode"
+
+    foreach ($line in $output) {
+        Write-Host "  $line"
+    }
+
+    foreach ($path in @(
+        (Join-Path $PrivatePythonRoot "python311.dll"),
+        (Join-Path $PrivatePythonRoot "Lib"),
+        (Join-Path $PrivatePythonRoot "DLLs"),
+        (Join-Path $PrivatePythonRoot "tcl")
+    )) {
+        Write-Host "  $path : $(Test-Path -LiteralPath $path)"
+    }
+}
+
+Write-Host ""
+Write-Host "Commands:"
+
+foreach ($name in @(
+    "py",
+    "python",
+    "python3"
+)) {
+    $command = Get-Command $name -ErrorAction SilentlyContinue
+
+    if ($command) {
+        Write-Host "  $name : $($command.Source)"
+    }
+    else {
+        Write-Host "  $name : not found"
+    }
+}
+
+Write-Host ""
+$venvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+
+Write-Host ".venv:"
+Write-Host "  $venvPython : $(Test-Path -LiteralPath $venvPython)"
+
+if (Test-Path -LiteralPath $venvPython) {
+    $output = @(
+        & $venvPython -c "import sys; print(sys.version); print(sys.executable)" 2>&1
+    )
+    $exitCode = $LASTEXITCODE
+
+    Write-Host "  Exit code: $exitCode"
+
+    foreach ($line in $output) {
+        Write-Host "  $line"
+    }
+}
+
+foreach ($name in @(
+    "setup_windows.log",
+    "private_python_installer.log"
+)) {
+    Write-Host ""
+    $path = Join-Path $PSScriptRoot $name
+
+    if (Test-Path -LiteralPath $path) {
+        Write-Host "Last lines of $name:"
+        Get-Content -LiteralPath $path -Tail 60
+    }
+    else {
+        Write-Host "$name : not found"
+    }
+}
+
+Write-Host ""
+Read-Host "Press Enter to exit"
